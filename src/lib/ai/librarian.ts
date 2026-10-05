@@ -2,6 +2,7 @@ import { engine } from "../search/engine";
 import { SECTION_BY_KEY, SECTIONS, sectionFor } from "../sections";
 import type { Book, ChatRequest, ChatResponse, Lang, ParsedIntent, SearchHit } from "../types";
 import { getLLM, parseJSON, type LLMProvider } from "./providers";
+import { LIBRARY_FACTS, libraryFAQ, wikiAnswer } from "./knowledge";
 import { ruleParse } from "./nlu";
 
 /**
@@ -35,14 +36,16 @@ Decision rules (important):
 - clarify when they ask for suggestions without any criteria ("can you suggest me some books?", "what should I read?").
 - general_question for anything that is not a request for books (facts, opinions, life questions, questions about authors or literature in general).
 - smalltalk for chit-chat about you or how they are.
-- book_question when they ask about the book currently being shown.`;
+- book_question when they ask about the book currently being shown.
+- Questions about the library itself (its name "Arcanum", its sections, how it works, who you are) are general_question — never book_question or find_book.`;
 
 function persona(name: string, gender: "male" | "female", lang: Lang) {
   return `You are ${name}, a warm, witty and genuinely friendly ${gender} librarian in Arcanum, a magical infinite 3D library where every book ever written has a shelf.
 You love chatting about books and life; you are curious about the person you're talking to.
 Speak naturally (2-4 short sentences — this is spoken aloud). No markdown, no bullet lists, no emojis.
 Reply in ${lang === "hi" ? `natural conversational Hindi (Devanagari), using ${gender === "male" ? "masculine" : "feminine"} first-person verb forms` : "English"}.
-Never invent facts about a book beyond the metadata you're given; if unsure, say so gently.`;
+Never invent facts about a book beyond the metadata you're given; if unsure, say so gently.
+${LIBRARY_FACTS}`;
 }
 
 type Pair = { en: string; hi: string };
@@ -191,6 +194,15 @@ export async function handleChat(req: ChatRequest): Promise<ChatResponse> {
   const exclude = req.currentBook ? [req.currentBook.id] : [];
   const base = { lang, provider };
 
+  // questions about Arcanum itself ("why is it called Arcanum?", "how many sections?")
+  // (checked before book questions: "why is this library called Arcanum?" is not about the book in hand)
+  if (["general_question", "smalltalk", "find_book", "book_question", "clarify"].includes(parsed.intent)) {
+    const faq = libraryFAQ(req.message, lang, req.librarianName);
+    const mentionsArcanum = /arcanum|आर्केनम|अर्कानम/i.test(req.message);
+    if (faq && (mentionsArcanum || !(parsed.intent === "find_book" && (parsed.filters?.author || (await engine.findByTitle(parsed.query ?? ""))))))
+      return { ...base, intent: "general_question", suggestions: CHIPS.start[lang], reply: await speak(llm, req, lang, `They asked about the library itself. Answer warmly using the facts about Arcanum. Suggested answer: ${faq}`, faq) };
+  }
+
   switch (parsed.intent) {
     case "greeting":
       return { ...base, intent: "greeting", suggestions: CHIPS.start[lang], reply: await speak(llm, req, lang, "Greet them back warmly and ask what they're in the mood to read, or offer to suggest a few favourites.", pick(T.greet(req.librarianName), lang)) };
@@ -220,13 +232,20 @@ export async function handleChat(req: ChatRequest): Promise<ChatResponse> {
         const reply = await speak(llm, req, lang, "This is a general question, not a book request. Answer it helpfully and accurately in a friendly way. Only if it fits naturally, mention you could find a book on the topic.", "", 320);
         return { ...base, intent: "general_question", reply, suggestions: CHIPS.start[lang] };
       }
-      // only offer books with a genuine keyword match — never random filler
-      const related = (await engine.search(parsed.query ?? req.message, {}, { k: 3, external: false })).filter((h) => h.why.includes("keywords") && h.why.includes("semantic"));
+      // offline: answer from Wikipedia when possible, never with random books
+      const wiki = await wikiAnswer(req.message, lang);
+      if (wiki) {
+        const reply =
+          lang === "hi"
+            ? `मेरी जानकारी के अनुसार: ${wiki.text} (स्रोत: विकिपीडिया — "${wiki.title}")। क्या मैं इस विषय पर कोई अच्छी किताब ढूँढूँ?`
+            : `Here's what I know: ${wiki.text} (Source: Wikipedia — "${wiki.title}".) Would you like me to find a good book on it?`;
+        return { ...base, intent: "general_question", reply, suggestions: lang === "hi" ? [`${wiki.title} पर किताबें सुझाओ`, "कुछ अच्छी किताबें सुझाओ"] : [`Suggest books about ${wiki.title}`, "Suggest me some books"] };
+      }
       const fb =
         lang === "hi"
-          ? `अच्छा सवाल है! मेरी असली विशेषज्ञता किताबें हैं, और अभी मेरा पूरा AI दिमाग़ जुड़ा नहीं है, इसलिए मैं अंदाज़ा नहीं लगाऊँगी।${related.length ? ` पर इस विषय पर ये किताबें मदद कर सकती हैं: ${titleList(related, lang)}।` : " क्या मैं इस विषय पर कोई किताब ढूँढूँ?"}`
-          : `That's a lovely question! Books are my real expertise, and my full AI brain isn't connected right now, so I won't guess.${related.length ? ` These might help, though: ${titleList(related, lang)}.` : " Shall I look for a book on it?"}`;
-      return { ...base, intent: "general_question", reply: fb, results: related, suggestions: CHIPS.start[lang] };
+          ? "हम्म, इसका पक्का जवाब मेरे पास नहीं है, और मैं अंदाज़ा नहीं लगाना चाहती। किताबों के बारे में, या इस पुस्तकालय के बारे में कुछ भी पूछिए — या मैं आपके लिए कुछ अच्छी किताबें सुझा दूँ?"
+          : "Hmm, I'm not sure about that one, and I'd rather not guess. Ask me anything about books or about Arcanum — or shall I suggest a few good reads?";
+      return { ...base, intent: "general_question", reply: fb, suggestions: CHIPS.start[lang] };
     }
     case "navigate_section": {
       const sec = SECTION_BY_KEY.get(parsed.sectionKey ?? "");
@@ -238,8 +257,27 @@ export async function handleChat(req: ChatRequest): Promise<ChatResponse> {
     }
     case "book_question": {
       const b = req.currentBook!;
+      // they named a different book we know → answer about that one instead
+      const other = await engine.findByTitle(req.message);
+      if (other && other.id !== b.id) {
+        const hit: SearchHit = { book: other, score: 1, location: engine.locationOf(other.id)!, why: ["title"] };
+        const fb = templateAnswer(req.message, other, lang, []) + (lang === "hi" ? " अगर आप चाहें तो मैं इसे भी ला सकती हूँ।" : " Would you like me to bring that one too?");
+        return { ...base, intent: "general_question", results: [hit], reply: await speak(llm, req, lang, `Answer about this book: ${bookFacts(other)}.`, fb) };
+      }
       const similar = await engine.search(`${b.subjects.slice(0, 4).join(" ")} ${b.genres[0]}`, { genre: b.genres[0] }, { k: 3, external: false, exclude: [b.id] });
-      const fb = templateAnswer(req.message, b, lang, similar);
+      let fb = templateAnswer(req.message, b, lang, similar);
+      const sparse = b.source !== "seed" && (b.description.length < 120 || b.description.startsWith(`${b.title} by`));
+      if (sparse && !llm && fb.trim() === b.description.trim()) {
+        const wiki = await wikiAnswer(`${b.title} ${b.authors[0] ?? ""} book`, lang);
+        const surname = (b.authors[0] ?? "").split(" ").pop()?.toLowerCase() ?? "";
+        const matches = wiki && wiki.title.toLowerCase().includes(b.title.toLowerCase().split(":")[0]) && (!surname || wiki.text.toLowerCase().includes(surname));
+        const facts = [b.year ? (lang === "hi" ? `${b.year} में प्रकाशित` : `first published in ${b.year}`) : "", b.pages ? (lang === "hi" ? `लगभग ${b.pages} पन्ने` : `about ${b.pages} pages`) : ""].filter(Boolean).join(", ");
+        fb = matches
+          ? (lang === "hi" ? `विकिपीडिया के अनुसार: ${wiki!.text}` : `From Wikipedia: ${wiki!.text}`)
+          : lang === "hi"
+            ? `"${b.title}" (${b.authors.join(", ")}) के बारे में मेरे पास बस एक छोटा-सा कैटलॉग कार्ड है${facts ? ` — ${facts}` : ""}। क्या मैं इससे मिलती-जुलती कुछ बेहतर जानी-पहचानी किताबें सुझाऊँ?`
+            : `I only have a short catalogue card for "${b.title}" by ${b.authors.join(", ")}${facts ? ` — ${facts}` : ""}. Shall I suggest some similar, better-known books?`;
+      }
       const reply = await speak(llm, req, lang, `Answer the user's question about this book using these facts (you may add well-known general knowledge about famous books, but be accurate): ${bookFacts(b)}. Similar books in our catalog: ${similar.map((s) => s.book.title).join("; ")}`, fb);
       return { ...base, intent: "book_question", reply, suggestions: CHIPS.found[lang] };
     }

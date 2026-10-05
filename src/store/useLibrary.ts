@@ -142,10 +142,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const busy = s.phase === "walking" || s.phase === "fetching";
     if (!busy) set({ phase: "thinking" });
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const body = JSON.stringify({
           message: clean,
           lang: s.lang,
           history: s.messages.slice(-10).map((m) => ({ role: m.role, text: m.text })),
@@ -154,10 +151,21 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           librarianGender: s.librarian.gender,
           lastIntent: s.lastIntent,
           lastSearch: s.lastSearch,
-        }),
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      const data = (await res.json()) as ChatResponse;
+        });
+      // one automatic retry: covers dev-server reloads and brief network blips
+      let data: ChatResponse | null = null;
+      for (let attempt = 0; attempt < 2 && !data; attempt++) {
+        try {
+          const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body });
+          if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+          data = (await res.json()) as ChatResponse;
+        } catch (e) {
+          console.error("[Arcanum] /api/chat failed", e);
+          if (attempt === 0) await new Promise((r) => setTimeout(r, 800));
+          else throw e;
+        }
+      }
+      if (!data) throw new Error("no response");
       const after = get();
       set({ provider: data.provider, pending: false, status: "", lang: data.lang });
       get().say(data.reply, data.lang);
@@ -175,7 +183,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     } catch {
       const l = get().lang;
       set({ pending: false, status: "" });
-      get().say(l === "hi" ? "क्षमा कीजिए, मुझे सुनने में थोड़ी दिक्कत हुई। क्या आप दोबारा कहेंगे?" : "Sorry, I lost my train of thought for a moment. Could you say that again?", l);
+      get().say(l === "hi" ? "क्षमा कीजिए — अभी कैटलॉग से जुड़ नहीं पाई। कृपया एक पल बाद फिर कोशिश कीजिए।" : "Sorry — I couldn't reach the catalogue just now. Please try again in a moment.", l);
       if (get().phase === "thinking") set({ phase: get().heldBook ? "presenting" : "idle" });
     }
   },

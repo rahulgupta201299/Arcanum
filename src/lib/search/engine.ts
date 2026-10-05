@@ -144,7 +144,14 @@ class SearchEngine {
     for (const b of this.books.values()) {
       const variants = [b.title, ...(b.title.match(/\((.*?)\)/)?.slice(1) ?? []), b.title.replace(/\(.*?\)/g, "")].map(normalize).filter(Boolean);
       for (const t of variants) {
-        if (t === q || (t.length > 3 && q.includes(t) && t.split(" ").length >= 1 && t.length >= q.length * 0.35)) {
+        // exact title, or a multi-word title quoted inside the request ("get me the name of the wind")
+        const words = t.split(" ").length;
+        const qWords = q.split(" ").length;
+        const contained =
+          ` ${q} `.includes(` ${t} `) &&
+          ((words >= 2 && t.length >= 8 && t.length >= q.length * 0.4) || // "get me the name of the wind"
+            (words === 1 && t.length >= 4 && qWords <= 5 && !GENERIC_TITLE_WORDS.has(t))); // "who wrote hamlet"
+        if (t === q || contained) {
           if (!best || b.title.length > best.title.length) best = b;
         }
       }
@@ -255,6 +262,9 @@ class SearchEngine {
     return out;
   }
 }
+
+/** One-word titles that are too common to be treated as a title mention. */
+const GENERIC_TITLE_WORDS = new Set(["library", "book", "books", "name", "love", "home", "life", "time", "story", "world", "this", "that", "money", "habits", "wonder", "becoming", "educated"]);
 
 /** Tailor ranking to the kind of reader: quick reads for casual readers, depth for avid ones. */
 function readerBoost(b: Book, reader?: ReaderType): number {

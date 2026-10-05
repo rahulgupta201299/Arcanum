@@ -28,7 +28,9 @@ export function GateScreen() {
           </button>
           <LangToggle />
         </div>
-        <p className="gate__hint">{t("enterHint", lang)}</p>
+        <p className="gate__hint">
+          {t("enterHint", lang)} · v{process.env.NEXT_PUBLIC_APP_VERSION}
+        </p>
       </div>
     </div>
   );

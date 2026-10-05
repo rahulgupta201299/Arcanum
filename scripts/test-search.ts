@@ -20,6 +20,10 @@ const qs: [string, Lang, Intent?][] = [
   ["mujhe ek emotional love story chahiye", "hi"],
   ["मुझे प्रेमचंद की किताब चाहिए", "hi"],
   ["take me to the history section", "en"],
+  ["why library name is arcanum?", "en"],
+  ["can you suggest me some book", "en", "general_question"],
+  ["how many sections are there?", "en"],
+  ["why this library name is arcanum?", "en", "find_book"],
 ];
 (async () => {
   for (const [m, l, last] of qs) {

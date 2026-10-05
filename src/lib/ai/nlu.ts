@@ -16,7 +16,9 @@ const RX = {
   bye: B("bye|goodbye|see you|alvida|अलविदा"),
   more: B("another|something else|different one|more like|similar|one more|next one|aur koi|dusri|doosri|kuch aur|aur dikhao|और कोई|दूसरी|कुछ और|ऐसी और"),
   navigate: B("take me to|go to|walk me to|le chalo|le chaliye|ले चलो|ले चलिए|section|vibhag|विभाग|सेक्शन"),
-  about: B("who wrote|author|writer|what is (?:it|this) about|about this|tell me (?:more )?about|summary|summari[sz]e|plot|how many pages|pages|when was|published|year|is it good|rating|worth reading|why|similar to this|theme|themes|kiske|kisne|kya hai|kitne|kab|kahani kya|iske baare|इसके बारे|किसने|कितने|कब|क्या है|कहानी क्या"),
+  about: B("who wrote|author|writer|what is (?:it|this) about|about this|tell me (?:more )?about|summary|summari[sz]e|plot|how many pages|pages|when was (?:it|this)|published|is it good|rating|worth reading|why (?:should|would) i read|similar to this|theme|themes|kiske|kisne|kya hai|kitne|kab|kahani kya|iske baare|इसके बारे|किसने|कितने|कब|क्या है|कहानी क्या"),
+  /** questions about Arcanum / the library itself */
+  library: B("arcanum|this library|is library|iss library|library ka naam|library ka name|the library|this place|your library|library'?s? name|आर्केनम|अर्कानम|इस लाइब्रेरी|इस पुस्तकालय|लाइब्रेरी का नाम|पुस्तकालय का नाम"),
   refersBook: B("this|it|its|the book|is book|iska|iski|iske|ye|yeh|isme|इस|यह|ये|इसकी|इसका|इसके|इसमें"),
   smalltalk: B("how are you|who are you|what's up|whats up|what is your name|your name|kaise ho|kaisi ho|aap kaun|tum kaun|aap kaise|कैसे हो|कैसी हो|आप कौन|आपका नाम"),
   findVerb: B("find|search|look for|looking for|recommend|suggest|show|need|want|get me|bring|chahiye|dhoondo|dhundo|dikhao|batao|suggest karo|चाहिए|ढूंढो|दिखाओ|बताओ"),
@@ -118,7 +120,12 @@ export function ruleParse(
   if (RX.thanks.test(t) && words <= 6) return { intent: "thanks", language };
   if (RX.bye.test(t)) return { intent: "goodbye", language };
 
-  if (currentBook && RX.about.test(t) && (RX.refersBook.test(t) || !RX.findVerb.test(t))) return { intent: "book_question", language };
+  // a question about the book in hand — but never when they're asking about the library itself
+  // names another title/person ("who wrote Hamlet?") → not about the book in hand
+  const namesSomethingElse = /\s[A-Z][a-z]{2,}/.test(t.replace(/^\S+/, "")) && !RX.refersBook.test(t);
+  if (currentBook && RX.about.test(t) && !RX.library.test(t) && !namesSomethingElse && (RX.refersBook.test(t) || (!RX.findVerb.test(t) && words <= 5)))
+    return { intent: "book_question", language };
+  if (RX.library.test(t) && (RX.question.test(t) || /\?\s*$/.test(t))) return { intent: "general_question", language, query: t };
 
   const genre = detectGenre(t);
   if (RX.navigate.test(t) && genre && /section|सेक्शन|विभाग|vibhag|take me to|le chalo|ले चलो/i.test(t)) return { intent: "navigate_section", language, sectionKey: genre };
@@ -158,6 +165,8 @@ export function ruleParse(
   }
 
   if (RX.suggest.test(t) || (RX.plural.test(t) && !RX.fetch.test(t))) {
+    // asked again without giving a taste → don't repeat the question, show all-time favourites
+    if (!hasCriteria && !reader && lastIntent === "clarify") return { intent: "recommend_list", language, bestsellers: true, filters };
     if (!hasCriteria && !reader) return { intent: "clarify", language };
     if (!hasCriteria) return { intent: "recommend_list", language, bestsellers: true, filters, reader };
     return { intent: "recommend_list", language, query: query || genre, filters: { ...filters, genre: filters.genre ?? (author ? undefined : genre) }, sectionKey: genre, reader };
