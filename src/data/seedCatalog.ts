@@ -1,0 +1,185 @@
+import type { Book } from "@/lib/types";
+
+// Compact seed rows: [title, authors, year, genres, subjects, description, language, pages, rating]
+// Descriptions are short original summaries. The seed exists so the library works
+// offline; live results from Open Library / Google Books are merged in at runtime.
+type Row = [string, string, number, string, string, string, string?, number?, number?];
+
+const ROWS: Row[] = [
+  // 1 classics
+  ["Pride and Prejudice", "Jane Austen", 1813, "classics,romance", "marriage,class,england,wit", "Elizabeth Bennet spars with the proud Mr. Darcy in a sharp comedy of manners about first impressions, family pressure and love in Regency England.", "en", 432, 4.3],
+  ["1984", "George Orwell", 1949, "classics,scifi", "dystopia,surveillance,totalitarianism,politics", "Winston Smith works for a regime that rewrites history and watches every citizen, and dares to think a forbidden thought.", "en", 328, 4.2],
+  ["To Kill a Mockingbird", "Harper Lee", 1960, "classics", "justice,racism,childhood,american south", "Through young Scout's eyes, her lawyer father defends a Black man falsely accused in a small Alabama town.", "en", 336, 4.3],
+  ["The Great Gatsby", "F. Scott Fitzgerald", 1925, "classics,romance", "jazz age,wealth,american dream,obsession", "A mysterious millionaire throws lavish parties on Long Island in pursuit of a lost love and an impossible dream.", "en", 180, 3.9],
+  ["Crime and Punishment", "Fyodor Dostoevsky", 1866, "classics,philosophy", "guilt,morality,russia,psychology", "A poor student commits murder to prove a theory and is consumed by guilt and a cat-and-mouse game with a detective.", "en", 671, 4.3],
+  ["One Hundred Years of Solitude", "Gabriel García Márquez", 1967, "classics,fantasy", "magical realism,family saga,latin america", "Seven generations of the Buendía family rise and fall in the magical town of Macondo.", "en", 417, 4.1],
+  ["Moby-Dick", "Herman Melville", 1851, "classics", "sea,whaling,obsession,adventure", "Captain Ahab drives his crew across the oceans hunting the white whale that took his leg.", "en", 635, 3.5],
+  ["Jane Eyre", "Charlotte Brontë", 1847, "classics,romance", "gothic,independence,governess", "An orphaned governess finds love and a terrible secret at Thornfield Hall.", "en", 532, 4.1],
+  ["The Catcher in the Rye", "J. D. Salinger", 1951, "classics", "adolescence,alienation,new york", "Expelled teenager Holden Caulfield wanders New York for three days, raging against phoniness.", "en", 277, 3.8],
+  ["Anna Karenina", "Leo Tolstoy", 1878, "classics,romance", "adultery,society,russia,tragedy", "A married aristocrat's passionate affair collides with the rigid rules of Russian high society.", "en", 864, 4.1],
+  ["The Kite Runner", "Khaled Hosseini", 2003, "classics", "friendship,redemption,afghanistan,guilt", "A wealthy boy betrays his loyal friend in Kabul and returns decades later to seek redemption.", "en", 371, 4.3],
+  // 2 mystery
+  ["The Hound of the Baskervilles", "Arthur Conan Doyle", 1902, "mystery,classics", "sherlock holmes,detective,moor,legend", "Sherlock Holmes investigates a family curse and a spectral hound on the fog-bound Devon moors.", "en", 256, 4.1],
+  ["And Then There Were None", "Agatha Christie", 1939, "mystery", "island,whodunit,murder,suspense", "Ten strangers lured to an island are murdered one by one according to a sinister nursery rhyme.", "en", 272, 4.3],
+  ["The Girl with the Dragon Tattoo", "Stieg Larsson", 2005, "mystery", "sweden,hacker,journalism,crime", "A disgraced journalist and a brilliant hacker dig into a decades-old disappearance in a wealthy family.", "en", 465, 4.1],
+  ["Gone Girl", "Gillian Flynn", 2012, "mystery", "marriage,psychological thriller,unreliable narrator", "When Amy vanishes on their anniversary, her husband becomes the prime suspect in a twisting psychological thriller.", "en", 422, 4.1],
+  ["The Da Vinci Code", "Dan Brown", 2003, "mystery", "conspiracy,art,codes,religion", "A symbologist races through Paris and London decoding clues hidden in Leonardo's art.", "en", 489, 3.9],
+  ["Murder on the Orient Express", "Agatha Christie", 1934, "mystery", "train,poirot,whodunit", "Hercule Poirot must solve a murder aboard a snowbound luxury train where every passenger has a secret.", "en", 256, 4.2],
+  ["The Silent Patient", "Alex Michaelides", 2019, "mystery", "psychotherapy,psychological thriller,silence", "A painter shoots her husband and never speaks again; a psychotherapist becomes obsessed with making her talk.", "en", 336, 4.1],
+  // 3 scifi
+  ["Dune", "Frank Herbert", 1965, "scifi", "desert planet,politics,ecology,prophecy", "On the desert world Arrakis, young Paul Atreides is caught in a war over the most valuable substance in the universe.", "en", 688, 4.3],
+  ["Foundation", "Isaac Asimov", 1951, "scifi", "galactic empire,psychohistory,civilization", "A mathematician predicts the fall of the galactic empire and plans to shorten the dark age that follows.", "en", 255, 4.2],
+  ["Neuromancer", "William Gibson", 1984, "scifi,technology", "cyberpunk,hacking,artificial intelligence", "A washed-up hacker is hired for one last job in a neon cyberpunk world ruled by corporations and AIs.", "en", 271, 3.9],
+  ["The Martian", "Andy Weir", 2011, "scifi,science", "mars,survival,engineering,humor", "Stranded alone on Mars, an astronaut uses science, duct tape and humor to survive.", "en", 369, 4.4],
+  ["Project Hail Mary", "Andy Weir", 2021, "scifi", "space,friendship,alien,science", "A lone astronaut wakes with amnesia on a mission to save Earth and makes an unexpected alien friend.", "en", 496, 4.5],
+  ["The Left Hand of Darkness", "Ursula K. Le Guin", 1969, "scifi", "gender,anthropology,ice world", "An envoy to a frozen planet whose people have no fixed gender must learn trust across cultures.", "en", 304, 4.1],
+  ["Brave New World", "Aldous Huxley", 1932, "scifi,classics", "dystopia,genetic engineering,happiness,control", "A future society engineered for pleasure and stability is challenged by an outsider raised in the wild.", "en", 268, 4.0],
+  ["The Three-Body Problem", "Liu Cixin", 2008, "scifi", "first contact,physics,china", "A secret military project sends signals into space and receives an answer from a civilization on the brink.", "en", 400, 4.1],
+  ["Klara and the Sun", "Kazuo Ishiguro", 2021, "scifi,classics", "artificial intelligence,robot,love,loneliness", "An Artificial Friend observes the human world with devotion as she cares for a sick girl.", "en", 303, 3.9],
+  ["The Hitchhiker's Guide to the Galaxy", "Douglas Adams", 1979, "scifi", "comedy,space,absurd", "Seconds before Earth is demolished, Arthur Dent is whisked into a hilarious tour of the galaxy.", "en", 224, 4.2],
+  // 4 fantasy
+  ["The Hobbit", "J. R. R. Tolkien", 1937, "fantasy,children", "dragon,adventure,dwarves,quest", "Homebody hobbit Bilbo Baggins joins thirteen dwarves on a quest to reclaim treasure from a dragon.", "en", 310, 4.3],
+  ["The Lord of the Rings", "J. R. R. Tolkien", 1954, "fantasy", "epic,quest,good vs evil,ring", "A humble hobbit must carry a ring of terrible power across Middle-earth to destroy it.", "en", 1178, 4.5],
+  ["Harry Potter and the Philosopher's Stone", "J. K. Rowling", 1997, "fantasy,children", "wizard,school,magic,friendship", "An orphan learns on his eleventh birthday that he is a wizard and enters Hogwarts School.", "en", 223, 4.5],
+  ["A Game of Thrones", "George R. R. Martin", 1996, "fantasy", "politics,war,dragons,betrayal", "Noble families scheme and battle for the Iron Throne while an ancient threat stirs in the north.", "en", 694, 4.4],
+  ["The Name of the Wind", "Patrick Rothfuss", 2007, "fantasy", "magic school,music,legend", "Kvothe, a legendary hero turned innkeeper, recounts the true story of his life.", "en", 662, 4.5],
+  ["Mistborn: The Final Empire", "Brandon Sanderson", 2006, "fantasy", "heist,magic system,rebellion", "A street thief joins a crew planning to overthrow an immortal god-emperor using metal-fuelled magic.", "en", 541, 4.5],
+  ["Circe", "Madeline Miller", 2018, "fantasy,classics", "greek mythology,witch,feminism", "The witch Circe, banished to an island, tells her own story among gods and mortals of Greek myth.", "en", 393, 4.3],
+  ["The Night Circus", "Erin Morgenstern", 2011, "fantasy,romance", "magic,circus,rivalry,love", "Two young magicians are bound in a secret contest staged inside a mysterious black-and-white circus.", "en", 387, 4.0],
+  // 5 romance
+  ["Outlander", "Diana Gabaldon", 1991, "romance,history,fantasy", "time travel,scotland,historical romance", "A WWII nurse is swept back in time to 18th-century Scotland and into a dangerous love.", "en", 850, 4.3],
+  ["The Notebook", "Nicholas Sparks", 1996, "romance", "enduring love,memory,emotional", "An old man reads a love story from a faded notebook to a woman whose memory is fading.", "en", 214, 4.1],
+  ["Me Before You", "Jojo Moyes", 2012, "romance", "emotional,disability,choices", "A small-town woman becomes caregiver to a paralysed man and their lives change forever.", "en", 369, 4.3],
+  ["The Fault in Our Stars", "John Green", 2012, "romance,children", "teen,cancer,love,emotional", "Two teenagers who meet at a cancer support group fall in love with wit and heartbreak.", "en", 313, 4.2],
+  ["Normal People", "Sally Rooney", 2018, "romance,classics", "ireland,class,relationships", "Connell and Marianne circle each other from school in Ireland to university in Dublin.", "en", 273, 3.9],
+  ["2 States", "Chetan Bhagat", 2009, "romance,indian", "india,inter-caste marriage,family,humor", "A Punjabi boy and a Tamil girl must convince their very different families to let them marry.", "en", 269, 3.6],
+  ["The Time Traveler's Wife", "Audrey Niffenegger", 2003, "romance,scifi", "time travel,marriage,love", "A librarian with a genetic disorder that throws him through time and the artist who loves him.", "en", 546, 4.0],
+  // 6 history
+  ["Sapiens", "Yuval Noah Harari", 2011, "history,science", "human evolution,civilization,anthropology", "A brief history of humankind from foragers to the scientific revolution and beyond.", "en", 443, 4.4],
+  ["Guns, Germs, and Steel", "Jared Diamond", 1997, "history,science", "geography,civilizations,inequality", "Why did some societies conquer others? Geography, crops and germs shaped human history.", "en", 480, 4.0],
+  ["The Discovery of India", "Jawaharlal Nehru", 1946, "history,indian", "india,civilization,culture,independence", "Written in prison, Nehru's sweeping account of India's history, philosophy and culture.", "en", 595, 4.2],
+  ["India After Gandhi", "Ramachandra Guha", 2007, "history,indian", "modern india,democracy,politics", "The story of the world's largest democracy from independence to the twenty-first century.", "en", 900, 4.4],
+  ["The Diary of a Young Girl", "Anne Frank", 1947, "history,biography", "holocaust,world war ii,diary", "A Jewish teenager's diary written while hiding from the Nazis in Amsterdam.", "en", 283, 4.2],
+  ["The Silk Roads", "Peter Frankopan", 2015, "history", "trade,asia,empires,world history", "World history retold from the trade routes linking East and West.", "en", 636, 4.2],
+  ["The Anarchy", "William Dalrymple", 2019, "history,indian", "east india company,colonialism,mughal", "How a trading company conquered an empire: the rise of the East India Company.", "en", 576, 4.4],
+  // 7 science
+  ["A Brief History of Time", "Stephen Hawking", 1988, "science", "cosmology,black holes,physics,universe", "From the Big Bang to black holes, Hawking explains the nature of space and time.", "en", 212, 4.2],
+  ["Cosmos", "Carl Sagan", 1980, "science", "universe,astronomy,science history", "A poetic journey through the universe and the history of scientific discovery.", "en", 396, 4.4],
+  ["The Selfish Gene", "Richard Dawkins", 1976, "science", "evolution,biology,genetics", "Evolution seen from the gene's point of view, introducing the idea of the meme.", "en", 360, 4.1],
+  ["The Gene: An Intimate History", "Siddhartha Mukherjee", 2016, "science,indian", "genetics,medicine,history of science", "The story of the gene, from Mendel's peas to gene editing, woven with family history.", "en", 592, 4.4],
+  ["Silent Spring", "Rachel Carson", 1962, "science", "environment,pesticides,ecology,nature", "The book that exposed the dangers of pesticides and launched the environmental movement.", "en", 378, 4.0],
+  ["The Body", "Bill Bryson", 2019, "science", "human body,medicine,anatomy,humor", "A witty guided tour of the human body and how it works.", "en", 450, 4.3],
+  ["Astrophysics for People in a Hurry", "Neil deGrasse Tyson", 2017, "science", "astrophysics,universe,short", "The essential ideas of the cosmos in short chapters for busy readers.", "en", 222, 4.1],
+  // 8 technology
+  ["Clean Code", "Robert C. Martin", 2008, "technology", "software craftsmanship,refactoring,programming", "Principles and practices for writing readable, maintainable code.", "en", 464, 4.4],
+  ["The Pragmatic Programmer", "Andrew Hunt, David Thomas", 1999, "technology", "software engineering,career,best practices", "Timeless practical advice for becoming a better, more effective software developer.", "en", 352, 4.3],
+  ["Introduction to Algorithms", "Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein", 1990, "technology", "algorithms,data structures,computer science", "The comprehensive reference on algorithms and data structures used in universities worldwide.", "en", 1312, 4.4],
+  ["Designing Data-Intensive Applications", "Martin Kleppmann", 2017, "technology", "distributed systems,databases,scalability", "The big ideas behind reliable, scalable and maintainable data systems.", "en", 616, 4.7],
+  ["Deep Learning", "Ian Goodfellow, Yoshua Bengio, Aaron Courville", 2016, "technology,science", "machine learning,neural networks,ai", "The foundational textbook on deep learning theory and practice.", "en", 800, 4.4],
+  ["Artificial Intelligence: A Modern Approach", "Stuart Russell, Peter Norvig", 1995, "technology", "ai,agents,search,machine learning", "The standard textbook covering the full breadth of artificial intelligence.", "en", 1136, 4.3],
+  ["You Don't Know JS Yet", "Kyle Simpson", 2020, "technology", "javascript,web development,programming", "A deep dive into the core mechanisms of the JavaScript language.", "en", 143, 4.4],
+  ["The Mythical Man-Month", "Frederick P. Brooks Jr.", 1975, "technology,business", "project management,software engineering", "Essays on why adding people to a late software project makes it later.", "en", 322, 4.1],
+  ["Hands-On Machine Learning", "Aurélien Géron", 2017, "technology", "machine learning,python,scikit-learn,tensorflow", "Practical, code-first guide to building machine learning and deep learning systems.", "en", 856, 4.6],
+  // 9 business
+  ["Zero to One", "Peter Thiel", 2014, "business", "startups,innovation,monopoly", "Notes on startups and how to build companies that create something genuinely new.", "en", 224, 4.2],
+  ["The Lean Startup", "Eric Ries", 2011, "business", "startups,mvp,experimentation", "Build-measure-learn: how today's entrepreneurs use continuous innovation.", "en", 336, 4.1],
+  ["Rich Dad Poor Dad", "Robert T. Kiyosaki", 1997, "business,selfhelp", "personal finance,money,investing", "Two fathers, two mindsets about money: lessons on assets, liabilities and financial freedom.", "en", 336, 4.1],
+  ["The Intelligent Investor", "Benjamin Graham", 1949, "business", "value investing,stock market,finance", "The classic guide to value investing and protecting yourself from market folly.", "en", 640, 4.3],
+  ["Thinking, Fast and Slow", "Daniel Kahneman", 2011, "business,selfhelp,science", "behavioral economics,cognitive bias,decision making", "Two systems drive the way we think — and the biases that lead us astray.", "en", 499, 4.2],
+  ["The Psychology of Money", "Morgan Housel", 2020, "business,selfhelp", "personal finance,behavior,wealth", "Short stories about how people think about money and make financial decisions.", "en", 256, 4.4],
+  ["Good to Great", "Jim Collins", 2001, "business", "leadership,management,companies", "Why some companies make the leap from good to great and others don't.", "en", 320, 4.1],
+  // 10 selfhelp
+  ["Atomic Habits", "James Clear", 2018, "selfhelp", "habits,productivity,behavior change", "Tiny changes, remarkable results: a practical system for building good habits and breaking bad ones.", "en", 320, 4.4],
+  ["The 7 Habits of Highly Effective People", "Stephen R. Covey", 1989, "selfhelp,business", "effectiveness,character,leadership", "A principle-centred approach to personal and professional effectiveness.", "en", 381, 4.1],
+  ["How to Win Friends and Influence People", "Dale Carnegie", 1936, "selfhelp", "communication,relationships,influence", "Timeless advice on making people like you and persuading them gracefully.", "en", 291, 4.2],
+  ["Man's Search for Meaning", "Viktor E. Frankl", 1946, "selfhelp,philosophy,biography", "holocaust,meaning,logotherapy,resilience", "A psychiatrist's experience in Nazi camps and his theory that meaning sustains us.", "en", 165, 4.4],
+  ["The Power of Now", "Eckhart Tolle", 1997, "selfhelp,philosophy", "mindfulness,presence,spirituality,anxiety", "A guide to spiritual enlightenment through living fully in the present moment.", "en", 236, 4.1],
+  ["Ikigai", "Héctor García, Francesc Miralles", 2016, "selfhelp", "purpose,longevity,japan,happiness", "The Japanese secret to a long and happy life: finding your reason for being.", "en", 208, 3.9],
+  ["Deep Work", "Cal Newport", 2016, "selfhelp,business", "focus,productivity,distraction", "Rules for focused success in a distracted world.", "en", 296, 4.2],
+  ["The Subtle Art of Not Giving a F*ck", "Mark Manson", 2016, "selfhelp", "values,mindset,happiness,humor", "A counterintuitive approach to living a good life by choosing what truly matters.", "en", 224, 3.9],
+  // 11 philosophy
+  ["Meditations", "Marcus Aurelius", 180, "philosophy", "stoicism,ethics,self-discipline", "Private notes of a Roman emperor on duty, mortality and inner calm.", "en", 254, 4.3],
+  ["The Bhagavad Gita", "Vyasa", -200, "philosophy,indian", "dharma,karma,yoga,spirituality,gita", "Krishna counsels the warrior Arjuna on duty, action and the self on the battlefield of Kurukshetra.", "en", 224, 4.6],
+  ["Siddhartha", "Hermann Hesse", 1922, "philosophy,classics", "enlightenment,buddhism,journey,india", "A young man in ancient India leaves home in search of spiritual enlightenment.", "en", 152, 4.1],
+  ["The Alchemist", "Paulo Coelho", 1988, "philosophy,fantasy", "destiny,dreams,journey,inspiration", "A shepherd boy travels from Spain to Egypt in search of treasure and his personal legend.", "en", 197, 3.9],
+  ["Sophie's World", "Jostein Gaarder", 1991, "philosophy,children", "history of philosophy,mystery,novel", "A girl receives mysterious letters that teach her the history of Western philosophy.", "en", 518, 3.9],
+  ["Autobiography of a Yogi", "Paramahansa Yogananda", 1946, "philosophy,biography,indian", "yoga,spirituality,meditation,india", "The life of a yogi and his encounters with saints, introducing Kriya Yoga to the West.", "en", 500, 4.3],
+  ["Beyond Good and Evil", "Friedrich Nietzsche", 1886, "philosophy", "morality,will to power,critique", "Nietzsche attacks traditional morality and calls for philosophers of the future.", "en", 240, 4.0],
+  // 12 biography
+  ["Steve Jobs", "Walter Isaacson", 2011, "biography,technology,business", "apple,innovation,entrepreneur", "The life of Apple's mercurial co-founder, based on over forty interviews with him.", "en", 656, 4.2],
+  ["Wings of Fire", "A. P. J. Abdul Kalam, Arun Tiwari", 1999, "biography,indian,science", "missile man,india,inspiration,space", "The autobiography of India's missile man and later President, from Rameswaram to rockets.", "en", 196, 4.4],
+  ["The Story of My Experiments with Truth", "Mahatma Gandhi", 1927, "biography,indian,philosophy", "gandhi,non-violence,truth,independence", "Gandhi's autobiography tracing his moral experiments from childhood to 1921.", "en", 480, 4.1],
+  ["Becoming", "Michelle Obama", 2018, "biography", "memoir,politics,family,identity", "The former First Lady's memoir from Chicago's South Side to the White House.", "en", 448, 4.5],
+  ["Educated", "Tara Westover", 2018, "biography", "education,family,survivalism,memoir", "Raised by survivalists in Idaho, a girl who never went to school earns a PhD from Cambridge.", "en", 352, 4.5],
+  ["Long Walk to Freedom", "Nelson Mandela", 1994, "biography,history", "apartheid,south africa,freedom", "Mandela's autobiography from village childhood through 27 years in prison to presidency.", "en", 656, 4.4],
+  ["Elon Musk", "Walter Isaacson", 2023, "biography,technology,business", "tesla,spacex,entrepreneur", "An intimate portrait of the entrepreneur behind Tesla, SpaceX and more.", "en", 688, 4.2],
+  // 13 indian & hindi
+  ["गोदान (Godaan)", "Munshi Premchand", 1936, "indian,classics", "village,farmer,poverty,hindi novel", "किसान होरी की गाय पाने की चाह और ग्रामीण भारत के शोषण की मार्मिक कथा। A farmer's lifelong dream of owning a cow, and the hardships of rural India.", "hi", 344, 4.4],
+  ["गबन (Gaban)", "Munshi Premchand", 1931, "indian,classics", "greed,middle class,hindi novel", "दिखावे और लालच में फँसे रमानाथ की कहानी। A young man's vanity leads him to embezzlement and ruin.", "hi", 280, 4.3],
+  ["मधुशाला (Madhushala)", "Harivansh Rai Bachchan", 1935, "indian,poetry", "hindi poetry,life,metaphor", "हरिवंश राय बच्चन की प्रसिद्ध रुबाइयाँ जिनमें मधुशाला जीवन का रूपक है। Celebrated Hindi quatrains using the tavern as a metaphor for life.", "hi", 144, 4.6],
+  ["रश्मिरथी (Rashmirathi)", "Ramdhari Singh Dinkar", 1952, "indian,poetry", "karna,mahabharata,epic poem,hindi", "महाभारत के कर्ण के जीवन पर आधारित दिनकर का ओजस्वी खंडकाव्य। An epic Hindi poem on the life of Karna from the Mahabharata.", "hi", 120, 4.8],
+  ["गुनाहों का देवता (Gunahon Ka Devta)", "Dharamvir Bharati", 1949, "indian,romance", "love,sacrifice,allahabad,hindi novel", "चंदर और सुधा के पवित्र प्रेम और त्याग की अमर कहानी। An emotional love story of Chandar and Sudha in Allahabad.", "hi", 288, 4.5],
+  ["The God of Small Things", "Arundhati Roy", 1997, "indian,classics", "kerala,family,caste,twins", "Twins in Kerala live through a family tragedy shaped by caste and forbidden love.", "en", 340, 3.9],
+  ["Midnight's Children", "Salman Rushdie", 1981, "indian,classics,fantasy", "partition,independence,magical realism", "Born at the stroke of India's independence, Saleem Sinai is telepathically linked to the nation's other midnight children.", "en", 647, 4.0],
+  ["The White Tiger", "Aravind Adiga", 2008, "indian", "class,ambition,corruption,dark humor", "A driver from a poor village narrates his rise to entrepreneurship in a corrupt modern India.", "en", 276, 3.8],
+  ["A Suitable Boy", "Vikram Seth", 1993, "indian,romance,classics", "marriage,post-independence,family saga", "A mother searches for a suitable husband for her daughter in newly independent India.", "en", 1349, 4.1],
+  ["Malgudi Days", "R. K. Narayan", 1943, "indian,children,classics", "short stories,small town,south india", "Gentle, funny stories of life in the fictional South Indian town of Malgudi.", "en", 256, 4.3],
+  ["The Palace of Illusions", "Chitra Banerjee Divakaruni", 2008, "indian,fantasy", "mahabharata,draupadi,mythology,feminism", "The Mahabharata retold through the eyes of Draupadi.", "en", 360, 4.2],
+  ["The Immortals of Meluha", "Amish Tripathi", 2010, "indian,fantasy", "shiva,mythology,adventure", "Shiva, a Tibetan tribal leader, is hailed as the saviour of the Meluhan empire.", "en", 415, 3.9],
+  ["तमस (Tamas)", "Bhisham Sahni", 1974, "indian,history", "partition,riots,hindi novel", "विभाजन के समय भड़के सांप्रदायिक दंगों की सशक्त कथा। A searing Hindi novel about communal riots during Partition.", "hi", 320, 4.4],
+  ["राग दरबारी (Raag Darbari)", "Shrilal Shukla", 1968, "indian,classics", "satire,village politics,hindi novel", "ग्रामीण राजनीति और भ्रष्टाचार पर तीखा व्यंग्य। A biting satire of village politics in post-independence India.", "hi", 330, 4.5],
+  // 14 children
+  ["Charlotte's Web", "E. B. White", 1952, "children", "friendship,animals,farm", "A pig named Wilbur is saved by the clever words of a spider named Charlotte.", "en", 192, 4.2],
+  ["The Little Prince", "Antoine de Saint-Exupéry", 1943, "children,philosophy", "friendship,love,childhood,fable", "A pilot stranded in the desert meets a little prince from a tiny asteroid.", "en", 96, 4.3],
+  ["Matilda", "Roald Dahl", 1988, "children", "books,school,magic,humor", "A brilliant, book-loving girl uses newfound powers against her awful parents and headmistress.", "en", 240, 4.3],
+  ["Panchatantra", "Vishnu Sharma", -300, "children,indian", "fables,animals,morals,stories", "Ancient Indian animal fables teaching wisdom and practical conduct.", "en", 300, 4.4],
+  ["Wonder", "R. J. Palacio", 2012, "children", "kindness,difference,school", "Auggie, born with a facial difference, starts fifth grade at a mainstream school.", "en", 315, 4.4],
+  ["The Hunger Games", "Suzanne Collins", 2008, "children,scifi", "dystopia,survival,young adult", "Katniss volunteers to fight in a televised battle to the death to save her sister.", "en", 374, 4.3],
+  ["Percy Jackson and the Lightning Thief", "Rick Riordan", 2005, "children,fantasy", "greek mythology,demigod,adventure", "A boy discovers he is the son of Poseidon and must stop a war between the gods.", "en", 377, 4.3],
+  // 15 poetry & drama
+  ["Gitanjali", "Rabindranath Tagore", 1910, "poetry,indian,philosophy", "devotion,spirituality,nobel prize", "Tagore's Nobel-winning song offerings of devotion and wonder.", "en", 112, 4.4],
+  ["Hamlet", "William Shakespeare", 1603, "poetry,classics", "tragedy,revenge,madness,play", "The Prince of Denmark seeks revenge for his father's murder and wrestles with doubt.", "en", 342, 4.0],
+  ["Leaves of Grass", "Walt Whitman", 1855, "poetry", "america,self,nature", "Whitman's sprawling celebration of the self, democracy and the natural world.", "en", 450, 4.1],
+  ["The Essential Rumi", "Rumi, Coleman Barks", 1995, "poetry,philosophy", "sufi,love,mysticism", "Ecstatic poems of divine love by the 13th-century Persian mystic.", "en", 320, 4.5],
+  ["Milk and Honey", "Rupi Kaur", 2014, "poetry", "love,trauma,healing,femininity", "Short modern poems about love, loss, trauma and healing.", "en", 208, 3.8],
+  ["Romeo and Juliet", "William Shakespeare", 1597, "poetry,romance,classics", "tragedy,young love,feud,play", "Two young lovers from feuding families defy fate in Verona.", "en", 283, 3.8],
+  ["Selected Poems of Mirza Ghalib", "Mirza Ghalib", 1869, "poetry,indian", "ghazal,urdu,shayari,love", "Ghazals of longing, wit and philosophy by the great Urdu poet.", "en", 200, 4.6],
+  // 16 arts & living
+  ["The Design of Everyday Things", "Don Norman", 1988, "arts,technology", "ux design,usability,psychology", "Why some products satisfy and others frustrate: the psychology of good design.", "en", 368, 4.2],
+  ["Salt, Fat, Acid, Heat", "Samin Nosrat", 2017, "arts", "cooking,recipes,food", "Master the four elements of good cooking and cook without recipes.", "en", 480, 4.5],
+  ["Steal Like an Artist", "Austin Kleon", 2012, "arts,selfhelp", "creativity,art,inspiration", "Ten things nobody told you about being creative.", "en", 160, 4.0],
+  ["The Story of Art", "E. H. Gombrich", 1950, "arts,history", "art history,painting,sculpture", "The classic introduction to art from cave paintings to the modern era.", "en", 688, 4.3],
+  ["Indian Cookery", "Madhur Jaffrey", 1982, "arts,indian", "indian food,recipes,cooking", "Approachable recipes introducing the regional cooking of India.", "en", 256, 4.3],
+  ["Into the Wild", "Jon Krakauer", 1996, "arts,biography", "travel,adventure,alaska,nature", "The true story of a young man who walked into the Alaskan wilderness.", "en", 207, 4.0],
+];
+
+function slug(s: string) {
+  return s.toLowerCase().normalize("NFKD").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
+}
+
+/** Widely-known all-time / modern bestsellers in the seed catalogue. */
+const BESTSELLERS = new Set([
+  "Harry Potter and the Philosopher's Stone", "The Alchemist", "The Da Vinci Code", "Atomic Habits", "Sapiens",
+  "Gone Girl", "The Psychology of Money", "The Hunger Games", "The Kite Runner", "Rich Dad Poor Dad",
+  "Wings of Fire", "2 States", "The Hobbit", "The Lord of the Rings", "To Kill a Mockingbird", "1984",
+  "And Then There Were None", "The Fault in Our Stars", "Ikigai", "The Silent Patient", "Me Before You",
+  "Becoming", "Educated", "The Subtle Art of Not Giving a F*ck", "How to Win Friends and Influence People",
+  "Thinking, Fast and Slow", "A Game of Thrones", "The Notebook", "Project Hail Mary", "The Little Prince",
+  "The Immortals of Meluha", "The Girl with the Dragon Tattoo", "A Brief History of Time",
+]);
+
+export const SEED_BOOKS: Book[] = ROWS.map(([title, authors, year, genres, subjects, description, language = "en", pages, rating], i) => ({
+  id: `seed-${slug(title) || i}`,
+  title,
+  authors: authors.split(/,\s*/),
+  year,
+  genres: genres.split(","),
+  subjects: subjects.split(","),
+  description,
+  language,
+  pages,
+  rating,
+  popularity: Math.min(1, (rating ? (rating - 3) / 1.8 : 0.5) + (BESTSELLERS.has(title) ? 0.35 : 0)),
+  bestseller: BESTSELLERS.has(title),
+  source: "seed",
+}));
