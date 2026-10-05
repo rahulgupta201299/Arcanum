@@ -96,6 +96,10 @@ either rig through the same channels.
 
 ## Browser notes
 
-Voice input uses the Web Speech API (Chrome, Edge, Safari). Text-to-speech uses
-the system voices; installing a Hindi voice (e.g. Google हिन्दी, Lekha) gives
-the best Hindi speech. Sound starts after the first click (browser autoplay rules).
+Voice input uses the Web Speech API (Chrome, Edge, Safari). The librarian speaks
+English with an **Indian accent** by default (switch to **UK** in the top bar);
+it picks an en-IN voice (e.g. Rishi / Veena on macOS, Prabhat / Neerja in Edge),
+then en-GB, then any English voice. On a Mac you can add more voices in
+*System Settings → Accessibility → Spoken Content → System Voice → Manage Voices → English (India)*.
+For Hindi, a Hindi voice (Lekha, Google हिन्दी) gives the best speech. With
+`TTS_PROVIDER=openai` the server voice is instructed to use the same accent. Sound starts after the first click (browser autoplay rules).

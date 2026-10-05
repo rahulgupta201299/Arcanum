@@ -54,6 +54,8 @@ interface LibraryState {
   provider: string;
   status: string;
   explore: boolean;
+  /** English voice accent: Indian (default) or British */
+  accent: "in" | "gb";
   /** rigged GLB avatars available under /public/models */
   models: { female: boolean; male: boolean };
 
@@ -111,6 +113,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   provider: "",
   status: "",
   explore: false,
+  accent: "in",
   models: { female: false, male: false },
 
   setPhase: (phase) => set({ phase }),

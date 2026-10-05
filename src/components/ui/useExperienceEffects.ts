@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { audio } from "@/lib/audio/ambience";
-import { getTTS } from "@/lib/voice";
+import { getTTS, setAccent } from "@/lib/voice";
 import { rt } from "@/lib/world/runtime";
 import { useLibrary } from "@/store/useLibrary";
 
@@ -19,6 +19,20 @@ export function useExperienceEffects() {
         if (s.models) useLibrary.getState().set("models", s.models);
       })
       .catch(() => {});
+  }, []);
+
+  // remember the preferred accent on this device
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("arcanum.accent");
+      if (saved === "in" || saved === "gb") useLibrary.getState().set("accent", saved);
+    } catch {}
+    return useLibrary.subscribe((s, p) => {
+      if (s.accent === p.accent) return;
+      try {
+        localStorage.setItem("arcanum.accent", s.accent);
+      } catch {}
+    });
   }, []);
 
   // speak every new librarian line
@@ -52,6 +66,7 @@ export function useExperienceEffects() {
           rt.lib.speaking = false;
         }
         if (p.soundOn !== s.soundOn) audio.setEnabled(s.soundOn);
+        if (p.accent !== s.accent) setAccent(s.accent);
         if (s.phase !== p.phase) {
           if (s.phase === "opening") {
             audio.init();

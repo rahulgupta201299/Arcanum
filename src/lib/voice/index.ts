@@ -42,7 +42,14 @@ export interface TTSProvider {
   cancel(): void;
 }
 
+/** English accent preference: Indian English first, British English as the alternative. */
+export type Accent = "in" | "gb";
+export const voicePrefs: { accent: Accent } = { accent: "in" };
+export function setAccent(a: Accent) {
+  voicePrefs.accent = a;
+}
 const LOCALE: Record<Lang, string> = { en: "en-IN", hi: "hi-IN" };
+const locale = (lang: Lang) => (lang === "en" ? (voicePrefs.accent === "gb" ? "en-GB" : "en-IN") : LOCALE[lang]);
 
 // ------------------------------------------------------------------ STT
 type SR = {
@@ -108,7 +115,7 @@ export class WebSpeechSTT implements STTProvider {
 
     const launch = () => {
       const rec: SR = new Ctor();
-      rec.lang = LOCALE[lang];
+      rec.lang = locale(lang);
       rec.interimResults = true;
       rec.continuous = true;
       rec.maxAlternatives = 1;
@@ -165,8 +172,9 @@ export class WebSpeechSTT implements STTProvider {
 }
 
 // ------------------------------------------------------------------ TTS
-const FEMALE_HINT = /female|woman|samantha|zira|veena|lekha|heera|kalpana|swara|neerja|aditi|raveena|karen|moira|tessa|susan|victoria|fiona|serena|google (हिन्दी|uk english female|us english)|aria|jenny|ava|allison/i;
-const MALE_HINT = /\bmale|\bman\b|rishi|hemant|prabhat|madhur|ravi|daniel|david|alex|fred|thomas|oliver|guy|arthur|aaron|google uk english male/i;
+// Known voice names (macOS, Windows/Edge "Natural", Chrome/Google, Android) by gender.
+const FEMALE_HINT = /female|woman|veena|isha|lekha|heera|kalpana|swara|neerja|aditi|raveena|sangeeta|ananya|priya|kate|serena|martha|libby|sonia|hazel|maisie|susan|fiona|moira|tessa|karen|samantha|zira|aria|jenny|ava|allison|google हिन्दी|google uk english female/i;
+const MALE_HINT = /\bmale|\bman\b|rishi|hemant|prabhat|madhur|ravi|aarav|kunal|daniel|arthur|oliver|george|ryan|thomas|alfie|elliot|guy|alex|fred|aaron|david|google uk english male/i;
 
 export class BrowserTTS implements TTSProvider {
   readonly name = "browser";
@@ -177,14 +185,31 @@ export class BrowserTTS implements TTSProvider {
     load();
     window.speechSynthesis.onvoiceschanged = load;
   }
+  /**
+   * Accent first, then gender: for English we strongly prefer en-IN voices
+   * (or en-GB when the British accent is chosen), falling back to the other,
+   * and only then to any English voice.
+   */
   pick(lang: Lang, gender: "male" | "female") {
-    const want = LOCALE[lang].slice(0, 2);
-    const byLang = this.voices.filter((v) => v.lang.toLowerCase().startsWith(want));
-    const pool = byLang.length ? byLang : this.voices.filter((v) => v.lang.startsWith("en"));
+    if (!this.voices.length && typeof window !== "undefined") this.voices = window.speechSynthesis?.getVoices() ?? [];
+    const norm = (v: SpeechSynthesisVoice) => v.lang.toLowerCase().replace("_", "-");
+    const want = lang === "en" ? "en" : LOCALE[lang].slice(0, 2);
+    const byLang = this.voices.filter((v) => norm(v).startsWith(want));
+    const pool = byLang.length ? byLang : this.voices.filter((v) => norm(v).startsWith("en"));
     const hint = gender === "female" ? FEMALE_HINT : MALE_HINT;
     const anti = gender === "female" ? MALE_HINT : FEMALE_HINT;
+    const accentScore = (v: SpeechSynthesisVoice) => {
+      const l = norm(v);
+      if (lang !== "en") return l === LOCALE[lang].toLowerCase() ? 20 : 0;
+      const primary = voicePrefs.accent === "gb" ? "en-gb" : "en-in";
+      const secondary = voicePrefs.accent === "gb" ? "en-in" : "en-gb";
+      if (l === primary || (primary === "en-gb" && /\buk\b|british/i.test(v.name)) || (primary === "en-in" && /india/i.test(v.name))) return 20;
+      if (l === secondary || (secondary === "en-gb" && /\buk\b|british/i.test(v.name)) || (secondary === "en-in" && /india/i.test(v.name))) return 12;
+      if (l === "en-us") return -2;
+      return 0;
+    };
     const score = (v: SpeechSynthesisVoice) =>
-      (hint.test(v.name) ? 4 : 0) - (anti.test(v.name) ? 4 : 0) + (v.lang.toLowerCase() === LOCALE[lang].toLowerCase() ? 2 : 0) + (/natural|neural|premium|enhanced|google/i.test(v.name) ? 1 : 0) + (v.localService ? 0 : 0.5);
+      accentScore(v) + (hint.test(v.name) ? 4 : 0) - (anti.test(v.name) ? 4 : 0) + (/natural|neural|premium|enhanced|google/i.test(v.name) ? 1 : 0) + (v.localService ? 0 : 0.5);
     return [...pool].sort((a, b) => score(b) - score(a))[0] ?? null;
   }
   speak(text: string, lang: Lang, gender: "male" | "female", h: SpeakHandlers = {}) {
@@ -198,7 +223,7 @@ export class BrowserTTS implements TTSProvider {
       const u = new SpeechSynthesisUtterance(text);
       const v = this.pick(lang, gender);
       if (v) u.voice = v;
-      u.lang = v?.lang ?? LOCALE[lang];
+      u.lang = v?.lang ?? locale(lang);
       // no gendered voice available → shift pitch so the voice still matches the avatar
       const genderMatch = v && (gender === "female" ? FEMALE_HINT : MALE_HINT).test(v.name);
       u.pitch = genderMatch ? 1 : gender === "female" ? 1.15 : 0.82;
@@ -237,7 +262,7 @@ export class ServerTTS implements TTSProvider {
   constructor(private fallback: TTSProvider) {}
   async speak(text: string, lang: Lang, gender: "male" | "female", h: SpeakHandlers = {}) {
     try {
-      const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, lang, gender }) });
+      const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, lang, gender, accent: voicePrefs.accent }) });
       if (!res.ok) throw new Error("tts");
       const url = URL.createObjectURL(await res.blob());
       this.cancel();

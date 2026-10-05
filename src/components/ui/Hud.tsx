@@ -105,6 +105,7 @@ export function Hud() {
   const quality = useLibrary((s) => s.quality);
   const explore = useLibrary((s) => s.explore);
   const provider = useLibrary((s) => s.provider);
+  const accent = useLibrary((s) => s.accent);
   const lang = useLibrary((s) => s.lang);
   const set = useLibrary((s) => s.set);
   if (phase === "gate") return null;
@@ -137,6 +138,10 @@ export function Hud() {
         >
           {Icon.walk()}
         </button>
+        <select className="quality quality--accent" value={accent} onChange={(e) => set("accent", e.target.value as "in" | "gb")} aria-label="English accent" title="Librarian's English accent">
+          <option value="in">EN · India</option>
+          <option value="gb">EN · UK</option>
+        </select>
         <select className="quality" value={quality} onChange={(e) => set("quality", e.target.value as Quality)} aria-label="Graphics quality">
           <option value="high">HQ</option>
           <option value="medium">MQ</option>

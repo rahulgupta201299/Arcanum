@@ -858,6 +858,10 @@ button:disabled {
   .quality {
     display: none;
   }
+  .quality.quality--accent {
+    display: block;
+    height: 34px;
+  }
   .icon-btn {
     width: 34px;
     height: 34px;
